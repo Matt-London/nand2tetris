@@ -16,5 +16,17 @@ CHIP PC {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    Inc16(in=outTminus1, out=inplus);
+
+    // Sort out what to load for loading items in ascending order through if statement
+    Mux16(a=in, b=inplus, sel=inc, out=incOrIn);
+    Mux16(a=incOrIn, b=in, sel=load, out=incLoadRes);
+    Mux16(a=incLoadRes, b=false, sel=reset, out=loadVal);
+
+    Or(a=reset, b=inc, out=incReset);
+    Or(a=incReset, b=load, out=runLoad);
+
+    // Actual register
+    Register(in=loadVal, load=runLoad, out=out, out=outTminus1);
+
 }
