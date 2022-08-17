@@ -10,3 +10,34 @@
 // R0 >= 0, R1 >= 0, and R0*R1 < 32768.
 
 // Put your code here.
+// Setup the loop, i=0
+	@i
+	M=0
+	@R2
+	M=0
+(LOOP)
+	// Check if i is greater than or equal to R1
+	@i
+	D=M
+	@R1
+	D=D-M
+	@END
+	D;JGE
+
+	// Otherwise look to add
+	@R0
+	D=M
+	@R2 // Add to R2
+	M=D+M
+
+	// Increment i
+	@i
+	M=M+1
+
+	@LOOP
+	0;JMP
+
+(END)
+	// Drop into an infinite loop
+	@END
+	0;JMP
