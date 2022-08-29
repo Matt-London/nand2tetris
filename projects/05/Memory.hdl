@@ -27,5 +27,15 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // DMux the load based on last bit
+    DMux(in=load, sel=address[14], a=ramLoad, b=screenLoad);
+
+    // Build the memory pieces
+    RAM16K(in=in, address=address[0..13], load=ramLoad, out=ramOut);
+    Screen(in=in, address=address[0..12], load=screenLoad, out=screenOut);
+    Keyboard(out=keyOut);
+
+    // Mux the results
+    Mux4Way16(a=ramOut, b=ramOut, c=screenOut, d=keyOut, sel=address[13..14], out=out);
+
 }

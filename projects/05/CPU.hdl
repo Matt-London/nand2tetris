@@ -39,5 +39,38 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    // Decide if it is an a or c instruction - feed output into a register
+    Mux16(a=instruction, b=aluOut, sel=instruction[15], out=aOrCMux);
+    And(a=instruction[15], b=instruction[5], out=cLoad);
+    Not(in=instruction[15], out=aIns);
+    Or(a=cLoad, b=aIns, out=loadAreg);
+    ARegister(in=aOrCMux, load=loadAreg, out=aRegOut, out[0..14]=addressM);
+
+    // Setup D register
+    And(a=instruction[15], b=instruction[4], out=loadDreg);
+    DRegister(in=aluOut, load=loadDreg, out=aluNum1);
+
+    // Feed registers into ALU
+    Mux16(a=aRegOut, b=inM, sel=instruction[12], out=aluNum2);
+
+    ALU(x=aluNum1, y=aluNum2, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=aluOut, out=outM, zr=aluZr, ng=aluNg);
+
+    // Assign writeM
+    And(a=instruction[3], b=instruction[15], out=writeM);
+
+    // Figure out if it should jump ins[0..2]
+    And(a=aluNg, b=instruction[2], out=jumpng);
+    And(a=aluZr, b=instruction[1], out=jumpzr);
+    Not(in=aluNg, out=aluNotng);
+    Not(in=aluZr, out=aluNotzr);
+    And(a=aluNotng, b=aluNotzr, out=aluGT);
+    And(a=aluGT, b=instruction[0], out=jumpgt);
+    Or(a=jumpng, b=jumpzr, out=jumptmp);
+    Or(a=jumptmp, b=jumpgt, out=jumpRes);
+    And(a=jumpRes, b=instruction[15], out=jump);
+
+    // Reset functionality
+    Not(in=jump, out=incPC);
+    PC(in=aRegOut, load=jump, inc=incPC, reset=reset, out[0..14]=pc);
+
 }
