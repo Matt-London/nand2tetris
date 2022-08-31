@@ -69,8 +69,7 @@ std::string Assembler::cToBin(std::string cIns) {
         jump = cIns.substr(compEnd + 2, cIns.size() - 1);
     }
 
-    std::string cmd = std::string("111") + binFromComp[comp] + binFromDest[destTxt] + binFromJump[jump];
-    return cmd;
+    return std::string("111") + binFromComp[comp] + binFromDest[destTxt] + binFromJump[jump];
 
 }
 
@@ -193,18 +192,13 @@ void Assembler::convertToBin() {
     tmpBuffer = buffer;
     buffer.clear();
 
-    int i = 0;
     for (const std::string& line: tmpBuffer) {
-        if (i == 127) {
-            i = 100000;
-        }
         if (line[0] == '@') {
             buffer.push_back(aToBin(line));
         }
         else {
             buffer.push_back(cToBin(line));
         }
-        i++;
     }
 }
 
