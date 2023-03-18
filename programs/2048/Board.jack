@@ -1,0 +1,143 @@
+/**
+ * Class that will represent a model of the game to be displayed
+ *
+ * @author Matt London
+ */
+class Board {
+    /** Array of blocks on the board */
+    field Array blocks;
+    /** Length of blocks array */
+    field int blocksLen;
+    /** Top left edge row */
+    field int startI;
+    /** Top left edge column */
+    field int startJ;
+    /** Height of the board */
+    field int height;
+    /** Width of the board */
+    field int width;
+
+    /** Number of blocks that will be in each row and column*/
+    static int edgeCount;
+
+
+    /**
+     * Constructor to build a new board
+     *
+     * @param si Start row of the top left
+     * @param sj Start column of the top left
+     * @param h Height of the board
+     * @param w Width of the board
+     */
+    constructor Board new(int si, int sj, int h, int w) {
+        var int i;
+
+        // Set the statics
+        let edgeCount = 3;
+
+        // Set params
+        let startI = si;
+        let startJ = sj;
+        let height = h;
+        let width = w;
+
+        let blocksLen = edgeCount * edgeCount;
+
+        // Create the array of blocks
+        let blocks = Array.new(blocksLen);
+        let i = 0;
+        // Loop through and create blocks
+        while (i < blocksLen) {
+            // TODO make some 2s and some 4s rather than making all 2s
+            let blocks[i] = Block.new(1);
+
+            let i = i + 1;
+        }
+
+        return this;
+    }
+
+    /**
+     * Pretty prints the board on the screen
+     */
+    method void drawBoard() {
+        var int blockH;
+        var int blockW;
+        var int i;
+        var int j;
+        var int count;
+        var Block bi;
+        var int charI;
+        var int charJ;
+
+        // Do the math for height and width of each block
+        let blockH = height / edgeCount;
+        let blockW = width / edgeCount;
+
+        // Draw the lines
+        // Horizontal
+        let i = startI;
+
+        while (i < (startI + height + (blockH/2))) {
+            do Screen.drawLine(startJ, i, startJ + width, i);
+            let i = i + blockW;
+        }
+
+
+        // Vertical
+        let i = startJ;
+
+        while (i < (startJ + width + (blockW/2))) {
+            do Screen.drawLine(i, startI, i, startI + height);
+            let i = i + blockH;
+        }
+
+        // Now we need to draw the numbers
+        let i = startI + (blockH/2);
+        let j = startJ + (blockW/2);
+        let count = 0;
+        while (count < blocksLen) {
+            // Print the number if it is filled
+            let bi = blocks[count];
+            if (bi.isFilled()) {
+                // Convert i and j to rows and columns
+                let charI = (i * 23) / 256;
+                let charJ = (j * 64) / 512;
+
+                do Output.moveCursor(charI, charJ);
+                do Output.printInt(bi.getNumber());
+            }
+
+            // Increment j
+            let j = j + blockW;
+
+            // Now check if we should set j to start and increment i instead
+            if (j > (startJ + width)) {
+                let j = startJ + (blockW/2);
+                let i = i + blockH;
+            }
+
+            let count = count + 1;
+        }
+
+        return;
+    }
+
+    /**
+     * Print all numbers for debugging
+     */
+    method void printBoard() {
+        var int i;
+        var Block bi;
+        let i = 0;
+
+        while (i < blocksLen) {
+            let bi = blocks[i];
+            do Output.printInt(bi.getNumber());
+            do Output.println();
+            let i = i + 1;
+        }
+
+        return;
+    }
+}
