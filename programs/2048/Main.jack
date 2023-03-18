@@ -1,0 +1,15 @@
+/**
+ * Main class to handle running the game
+ *
+ * @author Matt London
+ */
+class Main {
+    function void main() {
+        var String s;
+        let s = "Hello World!";
+        do Output.printString(s);
+        do Output.println();
+
+        return;
+    }
+}
