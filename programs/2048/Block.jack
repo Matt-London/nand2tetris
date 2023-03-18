@@ -8,6 +8,9 @@ class Block {
     field int power;
     /** Number that results from the calculation */
     field int number;
+    /** If the block is filled or empty */
+    field boolean filled;
+
     /** Base to use in calculations (default is 2) */
     static int base;
 
@@ -16,10 +19,11 @@ class Block {
      *
      * @param power Power to set number to initially
      */
-    function Block new(int pow) {
+    constructor Block new(int pow) {
         let base = 2;
         let power = pow;
         let number = 1;
+        let filled = true;
 
         // Calculate what the number should be
         do calcNumber();
@@ -30,13 +34,14 @@ class Block {
     /**
      * Sets the number based on the power
      */
-    function void calcNumber() {
-        var i;
+    method void calcNumber() {
+        var int i;
         let i = 0;
         
         // Loop and multiply until we reach the power
         while (i < power) {
             let number = base * number;
+            let i = i + 1;
         }
 
         return;
@@ -47,7 +52,7 @@ class Block {
      *
      * @return number
      */
-    function int getNumber() {
+    method int getNumber() {
         return number;
     }
 
@@ -56,14 +61,43 @@ class Block {
      *
      * @return power
      */
-    function int getPower() {
+    method int getPower() {
         return power;
     }
 
-    function void incrementPower() {
+    /**
+     * Increments the power by 1 and then recalculates the number
+     */
+    method void incrementPower() {
         let power = power + 1;
         do calcNumber();
         return;
+    }
+
+    /**
+     * Set whether the block is filled or not
+     *
+     * @param f Filled status of the block
+     */
+    method void setFilled(boolean f) {
+        let filled = f;
+
+        // If it's not filled we need to set everything to 0
+        if (~filled) {
+            let power = 0;
+            let number = 0;
+        }
+
+        return;
+    }
+
+    /**
+     * Get if the block is filled or not
+     *
+     * @return filled status
+     */
+    method boolean isFilled() {
+        return filled;
     }
 
 }
