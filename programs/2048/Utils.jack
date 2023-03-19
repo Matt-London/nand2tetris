@@ -1,0 +1,44 @@
+/**
+ * Holds basic utility functions
+ *
+ * @author Matt London
+ */
+class Utils {
+    /**
+     * Find the length of the number (number of digits)
+     *
+     * @param num Number to get the length of
+     * @return Number of digits in the number
+     */
+    function int getLength(int num) {
+        var int tmpNum;
+        var int len;
+        
+        let tmpNum = num;
+        let len = 0;
+        while (~(tmpNum = 0)) {
+            let tmpNum = tmpNum / 10;
+            let len = len + 1;
+        }
+
+        return len;
+    }
+
+    /**
+     * Get the modulus division of x%y
+     *
+     * @param x Numberator
+     * @param y Denominator
+     * @return x % y
+     */
+    function int modulus(int x, int y) {
+        var int quotient;
+        var int mod;
+
+        let quotient = x / y;
+
+        let mod = x - (quotient * y);
+
+        return mod;
+    }
+}
