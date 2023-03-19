@@ -31,9 +31,10 @@ class Board {
      */
     constructor Board new(int si, int sj, int h, int w) {
         var int i;
+        var Block bi;
 
         // Set the statics
-        let edgeCount = 3;
+        let edgeCount = 4;
 
         // Set params
         let startI = si;
@@ -50,6 +51,11 @@ class Board {
         while (i < blocksLen) {
             // TODO make some 2s and some 4s rather than making all 2s
             let blocks[i] = Block.new(1);
+            let bi = blocks[i];
+
+            if (~(Utils.modulus(i, 4) = 0)) {
+                do bi.setFilled(false);
+            }
 
             let i = i + 1;
         }
@@ -66,6 +72,9 @@ class Board {
         var int i;
         var int j;
         var int count;
+        var int num;
+        var int numLen;
+        var int offset;
         var Block bi;
         var int charI;
         var int charJ;
@@ -104,7 +113,13 @@ class Board {
                 let charI = (i * 23) / 256;
                 let charJ = (j * 64) / 512;
 
-                do Output.moveCursor(charI, charJ);
+                // Find the length that we need to offset by
+                let num = bi.getNumber();
+                let numLen = Utils.getLength(num);
+
+                let offset = numLen / 2;
+
+                do Output.moveCursor(charI, charJ - offset);
                 do Output.printInt(bi.getNumber());
             }
 
