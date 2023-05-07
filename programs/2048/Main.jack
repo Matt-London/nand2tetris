@@ -8,8 +8,9 @@ class Main {
         var Board board;
 
         let board = Board.new(10, 10, 200, 200);
-
         do board.drawBoard();
+
+        do board.run();
 
         return;
     }

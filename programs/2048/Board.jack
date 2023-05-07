@@ -16,6 +16,10 @@ class Board {
     field int height;
     /** Width of the board */
     field int width;
+    /** Score of the game */
+    field int score;
+    /** Number we will randomly modify to essentially create random numbers */
+    field int entropy;
 
     /** Number of blocks that will be in each row and column*/
     static int edgeCount;
@@ -32,6 +36,7 @@ class Board {
     constructor Board new(int si, int sj, int h, int w) {
         var int i;
         var Block bi;
+        var Block btmp;
 
         // Set the statics
         let edgeCount = 4;
@@ -41,6 +46,7 @@ class Board {
         let startJ = sj;
         let height = h;
         let width = w;
+        let score = 0;
 
         let blocksLen = edgeCount * edgeCount;
 
@@ -50,17 +56,77 @@ class Board {
         // Loop through and create blocks
         while (i < blocksLen) {
             // TODO make some 2s and some 4s rather than making all 2s
-            let blocks[i] = Block.new(1);
+            let blocks[i] = Block.new(0);
             let bi = blocks[i];
-
-            if (~(Utils.modulus(i, 4) = 0)) {
-                do bi.setFilled(false);
-            }
 
             let i = i + 1;
         }
 
+        // Spawn blocks
+        do spawnBlock();
+        do spawnBlock();
+
         return this;
+    }
+
+    /**
+     * Spawn an empty block randomly
+     *
+     * @return if we were able to add a block
+     */
+    method boolean spawnBlock() {
+        var int i;
+        var Block bi;
+        var Array empty;
+        var int emptyLen;
+        var int power;
+        var int tmp;
+
+        // Find all empty blocks
+        let empty = Array.new(blocksLen);
+        let emptyLen = 0;
+        // Loop through and add
+        let i = 0;
+        while (i < blocksLen) {
+            let bi = blocks[i];
+            if (~bi.isFilled()) {
+                let empty[emptyLen] = i;
+                let emptyLen = emptyLen + 1;
+            }
+            let i = i + 1;
+        }
+
+        // If there is no space then exit
+        if (emptyLen = 0) {
+            return false;
+        }
+
+        // Use entropy to get a random spot that is empty
+        let i = Utils.modulus(entropy, emptyLen);
+
+        // Affect entropy
+        let entropy = entropy + i;
+
+        // Choose if it should be a 2 or 4
+        let power = Utils.modulus(entropy, 2) + 1;
+
+        // Affect entropy
+        let entropy = entropy + power;
+
+        // Set the block
+        let tmp = empty[i];
+
+        // Make sure the block actually exists
+        if (tmp > (blocksLen - 1)) {
+            // Computational issue so just return true, it's not because there is no space
+            let tmp = empty[0];
+        }
+
+        let bi = blocks[tmp];
+
+        do bi.setPower(power);
+
+        return true;
     }
 
     /**
@@ -79,6 +145,8 @@ class Board {
         var int charI;
         var int charJ;
 
+        do Screen.clearScreen();
+
         // Do the math for height and width of each block
         let blockH = height / edgeCount;
         let blockW = width / edgeCount;
@@ -90,6 +158,7 @@ class Board {
         while (i < (startI + height + (blockH/2))) {
             do Screen.drawLine(startJ, i, startJ + width, i);
             let i = i + blockW;
+            let entropy = entropy + 1;
         }
 
 
@@ -121,6 +190,7 @@ class Board {
 
                 do Output.moveCursor(charI, charJ - offset);
                 do Output.printInt(bi.getNumber());
+                let entropy = entropy - 2;
             }
 
             // Increment j
@@ -135,24 +205,641 @@ class Board {
             let count = count + 1;
         }
 
+        // Draw score
+        do Output.moveCursor(3, 40);
+        do Output.printString("Score: ");
+        do Output.printInt(score);
+
         return;
     }
 
     /**
-     * Print all numbers for debugging
+     * Slides the board to the left
      */
-    method void printBoard() {
+    method boolean compressLeft() {
         var int i;
+        var int j;
+        var int k;
+        var int tmp;
         var Block bi;
+        var Block bj;
+        var int prev;
+        var boolean moved;
+        let moved = false;
+        // Loop through the rows
         let i = 0;
+        while (i < edgeCount) {
+            // Loop through the columns
+            let j = 1; // Start at 1 because we don't need to check the first block
+            while (j < edgeCount) {
+                let entropy = entropy * edgeCount;
+                // If the current block is not empty then run operations on it to shift to the left
+                let tmp = (i * edgeCount) + j;
+                let bi = blocks[tmp];
+                if (bi.isFilled()) {
+                    // If this block is filled then we need to keep looking to the left for a block that is not empty
+                    let k = j - 1;
+                    let prev = j;
+                    let bj = blocks[(i * edgeCount) + k];
+                    while ((k > 0) | (k = 0)) {
+                        if (bj.isFilled()) {
+                            // I wish we had break statements :(
+                            let k = -1;
+                        }
+                        // I wish we had else statements :(
+                        if (~bj.isFilled()) {
+                            let prev = k;
+                            let k = k - 1;
+                            let bj = blocks[(i * edgeCount) + k];
+                        }
+                    }
 
-        while (i < blocksLen) {
-            let bi = blocks[i];
-            do Output.printInt(bi.getNumber());
-            do Output.println();
+                    let k = prev;
+
+                    // Now we need to move that block into the open position
+                    if ((k > 0) | (k = 0)) {
+                        // If k is greater than 0 then we found a block to move
+                        let bj = blocks[(i * edgeCount) + k];
+                        if (~bj.isFilled()) {
+                            do bj.setPower(bi.getPower());
+                            do bi.setPower(0);
+                            let moved = true;
+                        }
+                    }
+                }
+
+                let j = j + 1;
+            }
+
             let i = i + 1;
         }
 
+        return moved;
+    }
+
+    /**
+     * Merges like cells when next to each other to the right
+     */
+    method void mergeRight() {
+        var int i;
+        var int j;
+        var int tmp;
+        var Block bi;
+        var Block bj;
+
+        // Loop through the rows
+        let i = 0;
+        while (i < edgeCount) {
+            // Loop through cols
+            let j = edgeCount - 1;
+            while (j > 0) {
+
+                // If the current block is not empty, check if the one to the right is the same
+                let tmp = (i * edgeCount) + j;
+                let bi = blocks[tmp];
+                let tmp = (i * edgeCount) + j - 1;
+                let bj = blocks[tmp];
+                let entropy = entropy - 3;
+
+                if (bi.isFilled() & bj.isFilled()) {
+                    // If the blocks are the same then we need to merge them
+                    if (bi.getPower() = bj.getPower()) {
+                        do bi.setPower(bi.getPower() + 1);
+                        do bj.setPower(0);
+                        let score = score + bi.getNumber();
+                    }
+                }
+
+                let j = j - 1;
+            }
+
+            let i = i + 1;
+        }
+
+        return;
+    }
+
+    /**
+     * Performs a left move on the board
+     */
+    method boolean moveLeft() {
+        var boolean moved;
+        let entropy = entropy - 5;
+        let moved = compressLeft();
+        do mergeLeft();
+        let moved = moved | compressLeft();
+        return moved;
+    }
+
+    /**
+     * Performs a right move on the board
+     */
+    method boolean moveRight() {
+        var boolean moved;
+        let moved = compressRight();
+        let entropy = entropy - 7;
+        do mergeRight();
+        let moved = moved | compressRight();
+        return moved;
+    }
+
+    /**
+     * Performs an up move on the board
+     */
+    method boolean moveUp() {
+        var boolean moved;
+        let entropy = entropy + 11;
+        let moved = compressUp();
+        do mergeUp();
+        let moved = moved | compressUp();
+        return moved;
+    }
+
+    /**
+     * Performs a down move on the board
+     */
+    method boolean moveDown() {
+        var boolean moved;
+        let entropy = entropy + 13;
+        let moved = compressDown();
+        do mergeDown();
+        let moved = moved | compressDown();
+        return moved;
+    }
+
+    /**
+     * Slides blocks to the right
+     */
+    method boolean compressRight() {
+        var int i;
+        var int j;
+        var int k;
+        var int tmp;
+        var Block bi;
+        var Block bj;
+        var int prev;
+        var boolean moved;
+        let moved = false;
+        // Loop through the rows
+        let i = 0;
+        while (i < edgeCount) {
+            // Loop through the columns
+            let j = edgeCount - 2; // Start at edgeCount - 2 because we don't need to check the first block
+            while ((j > 0) | (j = 0)) {
+                // If the current block is not empty then run operations on it to shift to right
+                let tmp = (i * edgeCount) + j;
+                let bi = blocks[tmp];
+                if (bi.isFilled()) {
+                    let entropy = entropy * j;
+                    // If this block is filled then we need to keep looking to the right for the next open block
+                    let k = j + 1;
+                    let prev = j;
+                    let bj = blocks[(i * edgeCount) + k];
+                    while ((k < (edgeCount))) {
+                        if (bj.isFilled()) {
+                            // I wish we had break statements :(
+                            let k = edgeCount;
+                        }
+                        // I wish we had else statements :(
+                        if (~bj.isFilled()) {
+                            let prev = k;
+                            let k = k + 1;
+                            let bj = blocks[(i * edgeCount) + k];
+                        }
+                    }
+
+                    let k = prev;
+
+                    // Now we need to move that block into the open position
+                    if (k < edgeCount) {
+                        // If k is valid then we found a block to move
+                        let bj = blocks[(i * edgeCount) + k];
+                        if (~bj.isFilled()) {
+                            do bj.setPower(bi.getPower());
+                            do bi.setPower(0);
+                            let moved = true;
+                        }
+                    }
+                }
+
+                let entropy = entropy * i - 1;
+
+                let j = j - 1;
+            }
+
+            let i = i + 1;
+        }
+
+        return moved;
+    }
+
+    /**
+     * Merges like cells when next to each other to the left
+     */
+    method void mergeLeft() {
+        var int i;
+        var int j;
+        var int tmp;
+        var Block bi;
+        var Block bj;
+
+        // Loop through the rows
+        let i = 0;
+        while (i < edgeCount) {
+            // Loop through cols
+            let j = 0;
+            while (j < (edgeCount - 1)) {
+
+                // If the current block is not empty, check if the one to the right is the same
+                let tmp = (i * edgeCount) + j;
+                let bi = blocks[tmp];
+                let tmp = (i * edgeCount) + j + 1;
+                let bj = blocks[tmp];
+
+                if (bi.isFilled() & bj.isFilled()) {
+                    // If the blocks are the same then we need to merge them
+                    if (bi.getPower() = bj.getPower()) {
+                        do bi.setPower(bi.getPower() + 1);
+                        do bj.setPower(0);
+                        let score = score + bi.getNumber();
+                    }
+                }
+
+                let j = j + 1;
+            }
+
+            let i = i + 1;
+        }
+
+        return;
+    }
+
+    /**
+     * Slides the board up
+     */
+     method boolean compressUp() {
+        var int i;
+        var int j;
+        var int k;
+        var int tmp;
+        var Block bi;
+        var Block bj;
+        var int prev;
+        var boolean moved;
+        let moved = false;
+        // Loop through the rows, start at 1 because 0 can't be moved further up
+        let i = 1;
+        while (i < edgeCount) {
+            // Loop through the columns
+            let j = 0;
+            while (j < edgeCount) {
+                // If the current block is not empty then run operations on it to shift it up
+                let tmp = (i * edgeCount) + j;
+                let bi = blocks[tmp];
+                if (bi.isFilled()) {
+                    // If this block is filled then we need to keep looking up to see where to move it
+                    let k = i - 1;
+                    let prev = i;
+                    let bj = blocks[(k * edgeCount) + j];
+                    while ((k > 0) | (k = 0)) {
+                        if (bj.isFilled()) {
+                            // I wish we had break statements :(
+                            let k = -1;
+                        }
+                        // I wish we had else statements :(
+                        if (~bj.isFilled()) {
+                            let prev = k;
+                            let k = k - 1;
+                            let bj = blocks[(k * edgeCount) + j];
+                        }
+                    }
+
+                    let k = prev;
+
+                    // Now we need to move that block into the open position
+                    if ((k > 0) | (k = 0)) {
+                        // If k is greater than 0 then we found a block to move
+                        let bj = blocks[(k * edgeCount) + j];
+                        if (~bj.isFilled()) {
+                            do bj.setPower(bi.getPower());
+                            do bi.setPower(0);
+                            let moved = true;
+                        }
+                    }
+                }
+
+                let j = j + 1;
+            }
+
+            let i = i + 1;
+        }
+
+        return moved;
+    }
+
+    /**
+     * Merges like cells when on top of each other
+     */
+     method void mergeUp() {
+        var int i;
+        var int j;
+        var int tmp;
+        var Block bi;
+        var Block bj;
+
+        // Loop through the rows
+        let i = 0;
+        while (i < (edgeCount - 1)) {
+            // Loop through cols
+            let j = 0;
+            while (j < edgeCount) {
+
+                // If the current block is not empty, check if the one to the right is the same
+                let tmp = (i * edgeCount) + j;
+                let bi = blocks[tmp];
+                let tmp = ((i + 1) * edgeCount) + j;
+                let bj = blocks[tmp];
+
+                if (bi.isFilled() & bj.isFilled()) {
+                    // If the blocks are the same then we need to merge them
+                    if (bi.getPower() = bj.getPower()) {
+                        do bi.setPower(bi.getPower() + 1);
+                        do bj.setPower(0);
+                        let score = score + bi.getNumber();
+                    }
+                }
+
+                let j = j + 1;
+            }
+
+            let i = i + 1;
+        }
+
+        return;
+    }
+
+    /**
+     * Slides the board down
+     */
+     method boolean compressDown() {
+        var int i;
+        var int j;
+        var int k;
+        var int tmp;
+        var Block bi;
+        var Block bj;
+        var int prev;
+        var boolean moved;
+        let moved = false;
+        // Loop through the rows from bottom
+        let i = edgeCount - 2;
+        while ((i > 0) | (i = 0)) {
+            let entropy = entropy - i;
+            // Loop through the columns
+            let j = 0;
+            while (j < edgeCount) {
+                // If the current block is not empty then run operations on it to shift it up
+                let tmp = (i * edgeCount) + j;
+                let bi = blocks[tmp];
+                if (bi.isFilled()) {
+                    // If this block is filled then we need to keep looking down to see where to move it
+                    let k = i + 1;
+                    let prev = i;
+                    let bj = blocks[(k * edgeCount) + j];
+                    while (k < edgeCount) {
+                        if (bj.isFilled()) {
+                            // I wish we had break statements :(
+                            let k = edgeCount;
+                        }
+                        // I wish we had else statements :(
+                        if (~bj.isFilled()) {
+                            let prev = k;
+                            let k = k + 1;
+                            let bj = blocks[(k * edgeCount) + j];
+                        }
+                    }
+
+                    let k = prev;
+
+                    // Now we need to move that block into the open position
+                    if (k < edgeCount) {
+                        // If k is valid then we found a block to move
+                        let bj = blocks[(k * edgeCount) + j];
+                        if (~bj.isFilled()) {
+                            do bj.setPower(bi.getPower());
+                            do bi.setPower(0);
+                            let moved = true;
+                        }
+                    }
+                }
+
+                let j = j + 1;
+            }
+            let entropy = entropy + (i * j) + 23;
+
+            let i = i - 1;
+        }
+
+        return moved;
+    }
+
+    /**
+     * Merges like cells when on top of each other downwards
+     */
+     method void mergeDown() {
+        var int i;
+        var int j;
+        var int tmp;
+        var Block bi;
+        var Block bj;
+
+        // Loop through the rows
+        let i = edgeCount - 1;
+        while (i > 0) {
+            // Loop through cols
+            let j = 0;
+            while (j < edgeCount) {
+
+                // If the current block is not empty, check if the one to the right is the same
+                let tmp = (i * edgeCount) + j;
+                let bi = blocks[tmp];
+                let tmp = ((i - 1) * edgeCount) + j;
+                let bj = blocks[tmp];
+
+                if (bi.isFilled() & bj.isFilled()) {
+                    // If the blocks are the same then we need to merge them
+                    if (bi.getPower() = bj.getPower()) {
+                        do bi.setPower(bi.getPower() + 1);
+                        do bj.setPower(0);
+                        let score = score + bi.getNumber();
+                    }
+                }
+
+                let j = j + 1;
+            }
+
+            let i = i - 1;
+        }
+
+        return;
+    }
+
+    /**
+     * Checks if it is possible for the board to move
+     *
+     * @return true if the board can move, false otherwise
+     */
+    method boolean canMove() {
+        var int i;
+        var int j;
+        var Block bi;
+        var Block bj;
+        var int up;
+        var int down;
+        var int left;
+        var int right;
+        var int tmp;
+
+        // Loop through the rows
+        let i = 0;
+        while (i < edgeCount) {
+            let j = 0;
+            while (j < edgeCount) {
+                // If current block is empty then we return true
+                let tmp = (i * edgeCount) + j;
+                let bi = blocks[tmp];
+                if (~bi.isFilled()) {
+                    return true;
+                }
+
+                // Otherwise we need to check if it can move somewhere or be merged somewhere
+                // Check up
+                if (i > 0) {
+                    let tmp = ((i - 1) * edgeCount) + j;
+                    let bj = blocks[tmp];
+                    if (bj.isFilled()) {
+                        if (bj.getPower() = bi.getPower()) {
+                            return true;
+                        }
+                    }
+                    else {
+                        return true;
+                    }
+                }
+
+                // Check down
+                if (i < (edgeCount - 1)) {
+                    let tmp = ((i + 1) * edgeCount) + j;
+                    let bj = blocks[tmp];
+                    if (bj.isFilled()) {
+                        if (bj.getPower() = bi.getPower()) {
+                            return true;
+                        }
+                    }
+                    else {
+                        return true;
+                    }
+                }
+
+                // Check left
+                if (j > 0) {
+                    let tmp = (i * edgeCount) + (j - 1);
+                    let bj = blocks[tmp];
+                    if (bj.isFilled()) {
+                        if (bj.getPower() = bi.getPower()) {
+                            return true;
+                        }
+                    }
+                    else {
+                        return true;
+                    }
+                }
+
+                // Check right
+                if (j < (edgeCount - 1)) {
+                    let tmp = (i * edgeCount) + (j + 1);
+                    let bj = blocks[tmp];
+                    if (bj.isFilled()) {
+                        if (bj.getPower() = bi.getPower()) {
+                            return true;
+                        }
+                    }
+                    else {
+                        return true;
+                    }
+                }
+
+                let j = j + 1;
+            }
+
+            let i = i + 1;
+        }
+
+        return false;
+    }
+
+    /**
+     * Draws a game over screen when the game is over
+     */
+    method void drawGameOver() {
+        do Output.moveCursor(10, 40);
+        do Output.printString("Game Over!");
+        return;
+    }
+
+    /**
+     * Runs the game, code modified from example in squaredancing
+     */
+    method void run() {
+        var boolean moved;
+        var char key;
+        var boolean exit;
+        let exit = false;
+        
+        while (~exit) {
+            // waits for a key to be pressed
+            while (key = 0) {
+                let key = Keyboard.keyPressed();
+            }
+
+            // Check if the key is a valid move
+            let moved = false;
+  
+            // Move left for 130
+            if (key = 130) {
+                let moved = moveLeft();
+            }
+            // Move right for 132
+            if (key = 132) {
+                let moved = moved | moveRight();
+            }
+            // Move up for 131
+            if (key = 131) {
+                let moved = moved | moveUp();
+            }
+            // Move down for 133
+            if (key = 133) {
+                let moved = moved | moveDown();
+            }
+
+            // That means we need to spawn a new block
+            if (moved) {
+                do spawnBlock();
+            }
+
+            do drawBoard();
+
+            // Check if the game is over
+            if (~canMove()) {
+                do drawGameOver();
+                let exit = true;
+            }
+
+            while (~(key = 0)) {
+                let key = Keyboard.keyPressed();
+            }
+
+        }
         return;
     }
 }

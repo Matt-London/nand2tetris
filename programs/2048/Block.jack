@@ -35,15 +35,30 @@ class Block {
      * Sets the number based on the power
      */
     method void calcNumber() {
-        var int i;
-        let i = 0;
-        
-        // Loop and multiply until we reach the power
-        while (i < power) {
-            let number = base * number;
-            let i = i + 1;
+        let number = Utils.pow(base, power);
+
+        if (power = 0) {
+            let filled = false;
         }
 
+        return;
+    }
+
+    /**
+     * Set the power of a block
+     *
+     * @param pow Power to set the block to
+     */
+    method void setPower(int pow) {
+        let power = pow;
+
+        do calcNumber();
+
+        let filled = true;
+        if (power = 0) {
+            let filled = false;
+        }
+        
         return;
     }
 
