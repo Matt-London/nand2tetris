@@ -115,4 +115,12 @@ class Block {
         return filled;
     }
 
+    /**
+     * Dispose of the block
+     */
+    method void dispose() {
+        do Memory.deAlloc(this);
+        return;
+    }
+
 }

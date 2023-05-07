@@ -842,4 +842,33 @@ class Board {
         }
         return;
     }
+
+    /**
+     * Disposes of the board
+     */
+    method void dispose() {
+        var int i;
+        var int j;
+        var int tmp;
+        var Block bi;
+
+        // Loop through the rows
+        let i = 0;
+        while (i < edgeCount) {
+            let j = 0;
+            while (j < edgeCount) {
+                let tmp = (i * edgeCount) + j;
+                let bi = blocks[tmp];
+                do bi.dispose();
+                let j = j + 1;
+            }
+            let i = i + 1;
+        }
+
+        do blocks.dispose();
+
+        do Memory.deAlloc(this);
+
+        return;
+    }
 }

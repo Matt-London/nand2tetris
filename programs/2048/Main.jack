@@ -12,6 +12,8 @@ class Main {
 
         do board.run();
 
+        do board.dispose();
+
         return;
     }
 }
