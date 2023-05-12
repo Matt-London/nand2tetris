@@ -31,7 +31,7 @@ var KeywordMap = map[string]KeywordType{ // While not technically a constant
 
 // Regex expressions used by the tokenizer
 
-var WhitespaceRegex = regexp.MustCompile(`^\s*`)
+var WhitespaceRegex = regexp.MustCompile(`^\s+`)
 var EmptyRegex = regexp.MustCompile(`^\s*$`)
 var CommentRegex = regexp.MustCompile(`^(//.*)|(/\*([^/]|$)|[^*])*\*/`)
 var KeywordRegex = regexp.MustCompile(`^(class|constructor|function|method|field|static|var|int|char|boolean|void|true|false|null|this|let|do|if|else|while|return)\b`)
