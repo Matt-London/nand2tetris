@@ -4,8 +4,7 @@ package common
 type TokenType int
 
 const (
-	None TokenType = iota
-	Keyword
+	Keyword TokenType = iota
 	Symbol
 	IntegerConstant
 	StringConstant
