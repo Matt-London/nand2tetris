@@ -5,6 +5,7 @@ import (
 	"fmt"
 	. "jackcompiler/pkg/common"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -41,6 +42,20 @@ func NewTokenizer(inputFilePath string) *Tokenizer {
 
 }
 
+// matchAdvance will return the matched text and advance the inputText
+// This assumes that the regex matches the beginning of the inputText
+func (t *Tokenizer) matchAdvance(regex regexp.Regexp) string {
+	// Get the indexes of the match
+	matchEndIdx := regex.FindStringIndex(t.inputText)[1]
+
+	// Collect string
+	match := t.inputText[:matchEndIdx]
+	// Advance the inputText
+	t.inputText = t.inputText[matchEndIdx:]
+
+	return match
+}
+
 // HasMoreTokens returns whether there are more tokens in the input
 func (t *Tokenizer) HasMoreTokens() bool {
 	// Check if whitespace regex matches the entire remaining string
@@ -57,13 +72,16 @@ func (t *Tokenizer) NextToken() *Token {
 	for changed {
 		changed = false
 		// Clear whitespace
-		whitespace := WhitespaceRegex.FindString(t.inputText)
-		changed = changed || whitespace != ""
-		t.inputText = strings.Replace(t.inputText, whitespace, "", 1)
+		if WhitespaceRegex.MatchString(t.inputText) {
+			t.matchAdvance(*WhitespaceRegex)
+			changed = true
+		}
 		// Clear comments
-		comment := CommentRegex.FindString(t.inputText)
-		changed = changed || comment != ""
-		t.inputText = strings.Replace(t.inputText, comment, "", 1)
+		if CommentRegex.MatchString(t.inputText) {
+			t.matchAdvance(*CommentRegex)
+			changed = true
+		}
+
 	}
 
 	// We need to check in order of precedence, for example checking an identifier before a symbol would resolve
@@ -73,10 +91,7 @@ func (t *Tokenizer) NextToken() *Token {
 			// Next token is keyword
 			token.tokenType = Keyword
 
-			// Collect string
-			match := KeywordRegex.FindString(t.inputText)
-			// Remove string from inputText
-			t.inputText = strings.Replace(t.inputText, match, "", 1)
+			match := t.matchAdvance(*KeywordRegex)
 
 			// Check which keyword it is
 			token.keywordType = KeywordMap[match]
@@ -85,10 +100,7 @@ func (t *Tokenizer) NextToken() *Token {
 			// Next token is a symbol
 			token.tokenType = Symbol
 
-			// Collect string
-			match := SymbolRegex.FindString(t.inputText)
-			// Remove string from inputText
-			t.inputText = strings.Replace(t.inputText, match, "", 1)
+			match := t.matchAdvance(*SymbolRegex)
 
 			// Symbol should just be a char
 			token.symbol = rune(match[0])
@@ -97,10 +109,7 @@ func (t *Tokenizer) NextToken() *Token {
 			// Next token is an integer constant
 			token.tokenType = IntegerConstant
 
-			// Collect string
-			match := IntegerConstantRegex.FindString(t.inputText)
-			// Remove string from inputText
-			t.inputText = strings.Replace(t.inputText, match, "", 1)
+			match := t.matchAdvance(*IntegerConstantRegex)
 
 			// Convert string to int
 			token.intVal, _ = strconv.Atoi(match)
@@ -109,10 +118,7 @@ func (t *Tokenizer) NextToken() *Token {
 			// Next token is a string constant
 			token.tokenType = StringConstant
 
-			// Collect string
-			match := StringConstantRegex.FindString(t.inputText)
-			// Remove string from inputText
-			t.inputText = strings.Replace(t.inputText, match, "", 1)
+			match := t.matchAdvance(*StringConstantRegex)
 
 			// Remove quotes from string and set its value
 			token.stringVal = match[1 : len(match)-1]
@@ -121,10 +127,7 @@ func (t *Tokenizer) NextToken() *Token {
 			// Next token is an identifier
 			token.tokenType = Identifier
 
-			// Collect string
-			match := IdentifierRegex.FindString(t.inputText)
-			// Remove string from inputText
-			t.inputText = strings.Replace(t.inputText, match, "", 1)
+			match := t.matchAdvance(*IdentifierRegex)
 
 			// Set identifier value
 			token.identifier = match
@@ -134,6 +137,6 @@ func (t *Tokenizer) NextToken() *Token {
 		}
 		return token
 	}
-	// If it doesn't have more tokens then return nil, but this should never happen
+	// If it doesn't have more tokens, then return nil, but this should never happen
 	return nil
 }
