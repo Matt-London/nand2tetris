@@ -12,7 +12,8 @@ import (
 
 // Tokenizer takes in a file and returns tokens as needed
 type Tokenizer struct {
-	inputText string
+	inputText    string
+	prevMatchEnd int
 }
 
 // NewTokenizer takes the input file path and loads a new tokenizer
@@ -38,20 +39,20 @@ func NewTokenizer(inputFilePath string) *Tokenizer {
 		contents += scanner.Text() + "\n"
 	}
 
-	return &Tokenizer{inputText: contents}
+	return &Tokenizer{inputText: contents, prevMatchEnd: -1}
 
 }
 
-// matchAdvance will return the matched text and advance the inputText
+// matchToken will return the current token
 // This assumes that the regex matches the beginning of the inputText
-func (t *Tokenizer) matchAdvance(regex regexp.Regexp) string {
+func (t *Tokenizer) matchToken(regex regexp.Regexp) string {
 	// Get the indexes of the match
 	matchEndIdx := regex.FindStringIndex(t.inputText)[1]
 
 	// Collect string
 	match := t.inputText[:matchEndIdx]
-	// Advance the inputText
-	t.inputText = t.inputText[matchEndIdx:]
+	// Get ready to advance the inputText when asked
+	t.prevMatchEnd = matchEndIdx
 
 	return match
 }
@@ -62,8 +63,24 @@ func (t *Tokenizer) HasMoreTokens() bool {
 	return !EmptyRegex.MatchString(t.inputText)
 }
 
-// NextToken moves the tokenizer forward one token and then returns the token
-func (t *Tokenizer) NextToken() *Token {
+// Advance will advance the tokenizer to the next token
+func (t *Tokenizer) Advance() {
+	// Advance the input text
+	if t.prevMatchEnd != -1 {
+		t.inputText = t.inputText[t.prevMatchEnd:]
+		t.prevMatchEnd = -1
+	}
+}
+
+// matchAdvance will match the regex and advance the tokenizer
+func (t *Tokenizer) matchAdvance(regex regexp.Regexp) string {
+	match := t.matchToken(regex)
+	t.Advance()
+	return match
+}
+
+// Token returns the current token
+func (t *Tokenizer) Token() *Token {
 	token := &Token{}
 
 	// Throwaway whitespace matching whitespace regex
@@ -91,7 +108,7 @@ func (t *Tokenizer) NextToken() *Token {
 			// Next token is keyword
 			token.tokenType = Keyword
 
-			match := t.matchAdvance(*KeywordRegex)
+			match := t.matchToken(*KeywordRegex)
 
 			// Check which keyword it is
 			token.keywordType = KeywordMap[match]
@@ -100,7 +117,7 @@ func (t *Tokenizer) NextToken() *Token {
 			// Next token is a symbol
 			token.tokenType = Symbol
 
-			match := t.matchAdvance(*SymbolRegex)
+			match := t.matchToken(*SymbolRegex)
 
 			// Symbol should just be a char
 			token.symbol = rune(match[0])
@@ -109,7 +126,7 @@ func (t *Tokenizer) NextToken() *Token {
 			// Next token is an integer constant
 			token.tokenType = IntegerConstant
 
-			match := t.matchAdvance(*IntegerConstantRegex)
+			match := t.matchToken(*IntegerConstantRegex)
 
 			// Convert string to int
 			token.intVal, _ = strconv.Atoi(match)
@@ -118,7 +135,7 @@ func (t *Tokenizer) NextToken() *Token {
 			// Next token is a string constant
 			token.tokenType = StringConstant
 
-			match := t.matchAdvance(*StringConstantRegex)
+			match := t.matchToken(*StringConstantRegex)
 
 			// Remove quotes from string and set its value
 			token.stringVal = match[1 : len(match)-1]
@@ -127,7 +144,7 @@ func (t *Tokenizer) NextToken() *Token {
 			// Next token is an identifier
 			token.tokenType = Identifier
 
-			match := t.matchAdvance(*IdentifierRegex)
+			match := t.matchToken(*IdentifierRegex)
 
 			// Set identifier value
 			token.identifier = match
