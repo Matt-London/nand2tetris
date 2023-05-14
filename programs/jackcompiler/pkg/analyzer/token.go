@@ -43,3 +43,8 @@ func (t *Token) IntVal() int {
 func (t *Token) StringVal() string {
 	return t.stringVal
 }
+
+// IsOperator returns true if the token is an operator
+func (t *Token) IsOperator() bool {
+	return t.tokenType == Symbol && (t.symbol == '+' || t.symbol == '-' || t.symbol == '*' || t.symbol == '/' || t.symbol == '&' || t.symbol == '|' || t.symbol == '<' || t.symbol == '>' || t.symbol == '=')
+}
