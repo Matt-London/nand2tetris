@@ -4,6 +4,7 @@ import (
 	"fmt"
 	. "jackcompiler/pkg/common"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -47,7 +48,6 @@ func (e *Engine) writeKeyword() bool {
 // It will return false if the symbol is not the next token
 func (e *Engine) writeSpecSymbol(symbol rune) bool {
 	if !(e.tokenizer.Token().TokenType() == Symbol && e.tokenizer.Token().Symbol() == symbol) {
-		fmt.Println("Expected symbol: " + string(symbol))
 		return false
 	}
 	e.writeSymbol()
@@ -81,7 +81,17 @@ func (e *Engine) writeSymbol() bool {
 	if !(e.tokenizer.Token().TokenType() == Symbol) {
 		return false
 	}
-	e.write("<symbol> " + string(e.tokenizer.Token().Symbol()) + " </symbol>")
+
+	// Escape special characters
+	cleanedSymbol := string(e.tokenizer.Token().Symbol())
+	if cleanedSymbol == "<" {
+		cleanedSymbol = "&lt;"
+	} else if cleanedSymbol == ">" {
+		cleanedSymbol = "&gt;"
+	} else if cleanedSymbol == "&" {
+		cleanedSymbol = "&amp;"
+	}
+	e.write("<symbol> " + cleanedSymbol + " </symbol>")
 	e.tokenizer.Advance()
 
 	return true
@@ -244,8 +254,9 @@ func (e *Engine) compileSubroutine() bool {
 	}
 
 	// Now we should have statements
-	for e.compileStatements() {
+	for !((e.tokenizer.Token().TokenType() == Symbol) && (e.tokenizer.Token().Symbol() == '}')) {
 		// This will loop until we are done with statements
+		e.compileStatements()
 	}
 
 	// Now we should have a closing brace
@@ -409,7 +420,38 @@ func (e *Engine) compileLet() bool {
 		return false
 	}
 
-	// TODO pickup here
+	// Next we may have an open brace or an equal sign
+	if e.writeSpecSymbol('[') {
+		// We have an open brace so we should have an expression
+		if !e.compileExpression() {
+			fmt.Println("Expected expression")
+			return false
+		}
+
+		// Now we should have a closing brace
+		if !e.writeSpecSymbol(']') {
+			fmt.Println("Expected closing brace")
+			return false
+		}
+	}
+
+	// Now we should have an equal sign
+	if !e.writeSpecSymbol('=') {
+		fmt.Println("Expected equal sign")
+		return false
+	}
+
+	// Now we should have an expression
+	if !e.compileExpression() {
+		fmt.Println("Expected expression")
+		return false
+	}
+
+	// Now we should have a semicolon
+	if !e.writeSpecSymbol(';') {
+		fmt.Println("Expected semicolon")
+		return false
+	}
 
 	e.indentVal--
 	e.write("</letStatement>")
@@ -419,43 +461,399 @@ func (e *Engine) compileLet() bool {
 
 // compileIf will write the xml for an if statement
 func (e *Engine) compileIf() bool {
-	return false
+	// Check if we have an if keyword
+	if !(e.tokenizer.Token().TokenType() == Keyword && e.tokenizer.Token().KeywordType() == If) {
+		return false
+	}
 
+	// Write opening
+	e.write("<ifStatement>")
+	e.indentVal++
+
+	// Eat if keyword
+	e.writeKeyword()
+
+	// Now we should have an open parenthesis
+	if !e.writeSpecSymbol('(') {
+		fmt.Println("Expected open parenthesis")
+		return false
+	}
+
+	// Now we should have an expression
+	if !e.compileExpression() {
+		fmt.Println("Expected expression")
+		return false
+	}
+
+	// Now we should have a close parenthesis
+	if !e.writeSpecSymbol(')') {
+		fmt.Println("Expected close parenthesis")
+		return false
+	}
+
+	// Now we should have an open brace
+	if !e.writeSpecSymbol('{') {
+		fmt.Println("Expected open brace")
+		return false
+	}
+
+	// Now we should have statements
+	if !e.compileStatements() {
+		fmt.Println("Expected statements")
+		return false
+	}
+
+	// Now we should have a close brace
+	if !e.writeSpecSymbol('}') {
+		fmt.Println("Expected close brace")
+		return false
+	}
+
+	// Now we may have an else keyword
+	if e.tokenizer.Token().TokenType() == Keyword && e.tokenizer.Token().KeywordType() == Else {
+		// Write the else keyword
+		e.writeKeyword()
+
+		// Now we should have an open brace
+		if !e.writeSpecSymbol('{') {
+			fmt.Println("Expected open brace")
+			return false
+		}
+
+		// Now we should have statements
+		if !e.compileStatements() {
+			fmt.Println("Expected statements")
+			return false
+		}
+
+		// Now we should have a close brace
+		if !e.writeSpecSymbol('}') {
+			fmt.Println("Expected close brace")
+			return false
+		}
+	}
+
+	e.indentVal--
+	e.write("</ifStatement>")
+
+	return true
 }
 
 // compileWhile will write the xml for a while statement
 func (e *Engine) compileWhile() bool {
-	return false
+	// Check if we have a while keyword
+	if !(e.tokenizer.Token().TokenType() == Keyword && e.tokenizer.Token().KeywordType() == While) {
+		return false
+	}
+
+	// Write opening
+	e.write("<whileStatement>")
+	e.indentVal++
+
+	// Eat the keyword
+	e.writeKeyword()
+
+	// Now we should have an open parenthesis
+	if !e.writeSpecSymbol('(') {
+		fmt.Println("Expected open parenthesis")
+		return false
+	}
+
+	// Now we should have an expression
+	if !e.compileExpression() {
+		fmt.Println("Expected expression")
+		return false
+	}
+
+	// Now we should have a close parenthesis
+	if !e.writeSpecSymbol(')') {
+		fmt.Println("Expected close parenthesis")
+		return false
+	}
+
+	// Now we should have an open brace
+	if !e.writeSpecSymbol('{') {
+		fmt.Println("Expected open brace")
+		return false
+	}
+
+	// Now we should have statements
+	if !e.compileStatements() {
+		fmt.Println("Expected statements")
+		return false
+	}
+
+	// Now we should have a close brace
+	if !e.writeSpecSymbol('}') {
+		fmt.Println("Expected close brace")
+		return false
+	}
+
+	e.indentVal--
+	e.write("</whileStatement>")
+
+	return true
 
 }
 
 // compileDo will write the xml for a do statement
 func (e *Engine) compileDo() bool {
-	return false
+	// We should have a do keyword
+	if !(e.tokenizer.Token().TokenType() == Keyword && e.tokenizer.Token().KeywordType() == Do) {
+		return false
+	}
 
+	// Write opening
+	e.write("<doStatement>")
+	e.indentVal++
+
+	// Eat the keyword
+	e.writeKeyword()
+
+	// Now we should have an identifier
+	if !e.writeIdentifier() {
+		fmt.Println("Expected identifier")
+		return false
+	}
+
+	// Now we may have a period
+	if e.writeSpecSymbol('.') {
+		// We have a period so we should have an identifier
+		if !e.writeIdentifier() {
+			fmt.Println("Expected identifier")
+			return false
+		}
+	}
+
+	// Now we should have an open parenthesis
+	if e.writeSpecSymbol('(') {
+		// We have an open parenthesis so we should have an expression list
+		if !e.compileExpressionList() {
+			fmt.Println("Expected expression list")
+			return false
+		}
+
+		// Now we should have a closing parenthesis
+		if !e.writeSpecSymbol(')') {
+			fmt.Println("Expected closing parenthesis")
+			return false
+		}
+	}
+
+	// Now we should have a semicolon
+	if !e.writeSpecSymbol(';') {
+		fmt.Println("Expected semicolon")
+		return false
+	}
+
+	e.indentVal--
+	e.write("</doStatement>")
+
+	return true
 }
 
 // compileReturn will write the xml for a return statement
 func (e *Engine) compileReturn() bool {
-	return false
+	// We should have a return keyword
+	if !(e.tokenizer.Token().TokenType() == Keyword && e.tokenizer.Token().KeywordType() == Return) {
+		return false
+	}
 
+	// Write opening
+	e.write("<returnStatement>")
+	e.indentVal++
+
+	// Eat return keyword
+	e.writeKeyword()
+
+	// We will have an expression or a semi colon
+	statementEnded := e.tokenizer.Token().TokenType() == Symbol && e.tokenizer.Token().Symbol() == ';'
+
+	// If we have an expression
+	if !statementEnded {
+		// We should have an expression
+		if !e.compileExpression() {
+			fmt.Println("Expected expression")
+			return false
+		}
+	}
+
+	// Now we should have a semicolon
+	if !e.writeSpecSymbol(';') {
+		fmt.Println("Expected semicolon")
+		return false
+	}
+
+	e.indentVal--
+	e.write("</returnStatement>")
+
+	return true
 }
 
 // compileExpression will write the xml for an expression
 func (e *Engine) compileExpression() bool {
-	return false
+	// Write opening
+	e.write("<expression>")
+	e.indentVal++
+
+	// Compile terms until we don't have an operator
+	moreTerms := true
+	for moreTerms {
+		if !e.compileTerm() {
+			fmt.Println("Expected term")
+			return false
+		}
+
+		// Check if we have an operator
+		if e.tokenizer.Token().IsOperator() {
+			// Write the operator
+			e.writeSymbol()
+		} else {
+			moreTerms = false
+		}
+	}
+
+	e.indentVal--
+	e.write("</expression>")
+
+	return true
 
 }
 
 // compileTerm will write the xml for a term (sorting out arrays vs calls and such)
 func (e *Engine) compileTerm() bool {
-	return false
+	// A term can be an integer constant, string constant, keyword constant, variable name,
+	// array, subroutine call, unary operation
+	isInt := e.tokenizer.Token().TokenType() == IntegerConstant
+	isString := e.tokenizer.Token().TokenType() == StringConstant
+	isKeyword := e.tokenizer.Token().TokenType() == Keyword
+	isVarName := e.tokenizer.Token().TokenType() == Identifier
+	isUnary := e.tokenizer.Token().TokenType() == Symbol && (e.tokenizer.Token().Symbol() == '-' || e.tokenizer.Token().Symbol() == '~')
+	isExpr := e.tokenizer.Token().TokenType() == Symbol && e.tokenizer.Token().Symbol() == '('
 
+	// Check if we satisfy any of the above
+	if !(isInt || isString || isKeyword || isVarName || isUnary || isExpr) {
+		fmt.Println("Expected a term")
+		return false
+	}
+
+	// Write opening
+	e.write("<term>")
+	e.indentVal++
+
+	if isExpr {
+		// We have an open parenthesis
+		// Eat the symbol
+		e.writeSymbol()
+
+		// Now we should have an expression
+		if !e.compileExpression() {
+			fmt.Println("Expected expression")
+			return false
+		}
+
+		// Now we should have a close parenthesis
+		if !e.writeSpecSymbol(')') {
+			fmt.Println("Expected close parenthesis")
+			return false
+		}
+
+	} else if isUnary {
+		// We have a unary operation
+		// Eat the symbol
+		e.writeSymbol()
+
+		// Now we should have a term
+		if !e.compileTerm() {
+			fmt.Println("Expected term")
+			return false
+		}
+	} else if isInt {
+		// We have an integer constant
+		e.write("<integerConstant> " + strconv.Itoa(e.tokenizer.Token().IntVal()) + " </integerConstant>")
+		e.tokenizer.Advance()
+	} else if isString {
+		// We have a string constant
+		e.write("<stringConstant> " + e.tokenizer.Token().StringVal() + " </stringConstant>")
+		e.tokenizer.Advance()
+	} else if isKeyword {
+		// We have a keyword constant
+		e.writeKeyword()
+	} else if isVarName {
+		// This could be a variable name, array, or subroutine call
+		// We know we have an identifier so let's grab that string
+		e.writeIdentifier()
+
+		// Now we may have a period
+		if e.writeSpecSymbol('.') {
+			// We have a period so an identifier should follow
+			if !e.writeIdentifier() {
+				fmt.Println("Expected identifier")
+				return false
+			}
+		}
+
+		// Now we may have an open parenthesis or open bracket
+		if e.writeSpecSymbol('[') {
+			// In the open bracket we should have an expression
+			if !e.compileExpression() {
+				fmt.Println("Expected expression")
+				return false
+			}
+
+			// Now we should have a closing bracket
+			if !e.writeSpecSymbol(']') {
+				fmt.Println("Expected closing bracket")
+				return false
+			}
+		}
+
+		// Now we may have an open parenthesis
+		if e.writeSpecSymbol('(') {
+			// We have an open parenthesis so we should have an expression list
+			if !e.compileExpressionList() {
+				fmt.Println("Expected expression list")
+				return false
+			}
+
+			// Now we should have a closing parenthesis
+			if !e.writeSpecSymbol(')') {
+				fmt.Println("Expected closing parenthesis")
+				return false
+			}
+		}
+
+	}
+
+	e.indentVal--
+	e.write("</term>")
+
+	return true
 }
 
 // compileExpressionList will write the xml for an expression list
 func (e *Engine) compileExpressionList() bool {
-	return false
+	// Write opening
+	e.write("<expressionList>")
+	e.indentVal++
+
+	// We have at least one expression if the next token isn't a closing paranthesis
+	moreExpressions := e.tokenizer.Token().TokenType() != Symbol || e.tokenizer.Token().Symbol() != ')'
+	for moreExpressions {
+		// We should have an expression
+		if !e.compileExpression() {
+			fmt.Println("Expected expression")
+			return false
+		}
+
+		// Now we may have a comma, which will indicate if we have more expressions
+		moreExpressions = e.writeSpecSymbol(',')
+	}
+
+	e.indentVal--
+	e.write("</expressionList>")
+
+	return true
 
 }
 
@@ -479,18 +877,10 @@ func (e *Engine) WriteXML() {
 		}
 	}(e.outputFile)
 
-	// Write top level tags
-	e.write("<tokens>")
-	e.indentVal++
-
 	// Now compile the class
 	if !e.compileClass() {
 		fmt.Println("Failed to compile... See above for details.")
 		return
 	}
-
-	// Write closing tags
-	e.indentVal--
-	e.write("</tokens>")
 
 }
